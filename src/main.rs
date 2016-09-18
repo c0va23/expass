@@ -5,8 +5,12 @@ use std::collections::{
     BTreeMap,
     BTreeSet,
 };
+use std::time::{
+    Instant,
+};
 
 fn main() {
+    let instant = Instant::now();
     let file = File::open("expass.csv").unwrap();
     let reader = BufReader::new(file);
     let mut passports = BTreeMap::new();
@@ -18,7 +22,7 @@ fn main() {
                 .or_insert(BTreeSet::new())
                 .insert(number);
     }
-    for (series, numbers) in passports {
-        println!("Series {:04} have {} numbers", series, numbers.len());
-    }
+    let parse_duration = instant.elapsed();
+    println!("Parse duration {:?}", parse_duration.as_secs());
+    println!("Number of series {}", passports.len());
 }
