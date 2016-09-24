@@ -24,6 +24,7 @@ fn parse_line(line: String) -> Result<(String, u32), String> {
 }
 
 fn parse_passports(file_path: &str) -> BTreeMap<String, BTreeSet<u32>> {
+    println!("Start parse {}", file_path);
     let instant = Instant::now();
     let file = File::open(file_path).unwrap();
     let reader = BufReader::new(file);
