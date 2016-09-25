@@ -32,7 +32,7 @@ fn parse_passports(file_path: &str) -> BTreeMap<u16, BTreeSet<u32>> {
     let file = File::open(file_path).unwrap();
     let reader = BufReader::new(file);
     let mut passports = BTreeMap::new();
-    for buffer in reader.lines() {
+    for buffer in reader.lines().skip(1) {
         let line = buffer.unwrap();
         match parse_line(line.to_string()) {
             Ok((series, number)) => {
