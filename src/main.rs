@@ -15,11 +15,16 @@ fn main() {
         println!("Start process requeset: {} {}", req.method, req.uri);
         if let RequestUri::AbsolutePath(path) = req.uri {
             let mut path_parts = path.splitn(3, '/').skip(1); // Skip empty part
-            let series = path_parts.next().expect("Series not found");
-            let number = path_parts.next().expect("Number not found")
-                                   .parse::<u32>().expect("Invalid number");
-            let exists = shared_database.is_exist(series.to_string(), number);
-            println!("{} {} is {}", series, number, exists);
+            let series = path_parts.next()
+                                   .expect("Series not found")
+                                   .parse()
+                                   .expect("Invalid series format");
+            let number = path_parts.next()
+                                   .expect("Number not found")
+                                   .parse::<u32>()
+                                   .expect("Invalid number format");
+            let exists = shared_database.is_exist(series, number);
+            println!("{:04} {:06} is {}", series, number, exists);
             res.send(format!("{}", exists).as_bytes()).unwrap();
         } else {
             println!("{} is not AbsolutePath", req.uri);

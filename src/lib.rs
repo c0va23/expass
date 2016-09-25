@@ -10,21 +10,24 @@ use std::time::{
 };
 
 pub struct Database {
-    passports: BTreeMap<String, BTreeSet<u32>>,
+    passports: BTreeMap<u16, BTreeSet<u32>>,
 }
 
-fn parse_line(line: String) -> Result<(String, u32), String> {
+fn parse_line(line: String) -> Result<(u16, u32), String> {
     let mut line_parts = line.splitn(2, ",");
-    let series = line_parts.next().unwrap().to_string();
-    let number_str = line_parts.next().unwrap();
-    match number_str.parse() {
-        Ok(number) => Ok((series, number)),
-        Err(err) => Err(format!("{}", err)),
+    match line_parts.next().unwrap().parse() {
+        Ok(series) => {
+            match line_parts.next().unwrap().parse() {
+                Ok(number) => Ok((series, number)),
+                Err(err) => Err(format!("Invalid number: {}", err)),
+            }
+        },
+        Err(err) => Err(format!("Invalid series: {}", err)),
     }
 }
 
-fn parse_passports(file_path: &str) -> BTreeMap<String, BTreeSet<u32>> {
-    println!("Start parse {}", file_path);
+fn parse_passports(file_path: &str) -> BTreeMap<u16, BTreeSet<u32>> {
+    println!("Start parse file {}", file_path);
     let instant = Instant::now();
     let file = File::open(file_path).unwrap();
     let reader = BufReader::new(file);
@@ -54,7 +57,7 @@ impl Database {
         }
     }
 
-    pub fn is_exist(&self, series: String, number: u32) -> bool {
+    pub fn is_exist(&self, series: u16, number: u32) -> bool {
         self.passports.contains_key(&series) &&
             self.passports.get(&series).unwrap().contains(&number)
     }
