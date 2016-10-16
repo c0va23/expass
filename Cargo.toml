@@ -4,5 +4,9 @@ version = "0.1.0"
 authors = ["root"]
 
 [dependencies]
-hyper="0.9"
 clap="2.13"
+num_cpus="1.0"
+
+[dependencies.hyper]
+version="0.9"
+default-features = false
