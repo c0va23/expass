@@ -3,7 +3,12 @@ extern crate hyper;
 extern crate clap;
 extern crate num_cpus;
 
-use hyper::server::{Server, Request, Response};
+use hyper::server::{
+    Server,
+    Request,
+    Response,
+    Handler,
+};
 use hyper::uri::RequestUri;
 
 
@@ -63,22 +68,20 @@ fn parse_args() -> Args {
     }
 }
 
-fn main() {
-    let args = parse_args();
+struct ExpassHandler {
+    shared_database: std::sync::Arc<expass::Database>,
+}
 
-    let database = expass::Database::new(&args.database_path);
-    let shared_database = std::sync::Arc::new(database);
+impl ExpassHandler {
+    fn new(database: expass::Database) -> Self {
+        ExpassHandler {
+            shared_database: std::sync::Arc::new(database),
+        }
+    }
+}
 
-    println!(
-        "Start server on {} with {} threads",
-        args.server_bind,
-        args.num_threads,
-    );
-
-
-    Server::http(&*args.server_bind)
-           .unwrap()
-           .handle_threads(move |req: Request, res: Response| {
+impl Handler for ExpassHandler {
+    fn handle(&self, req: Request, res: Response) {
         println!("Start process requeset: {} {}", req.method, req.uri);
         if let RequestUri::AbsolutePath(path) = req.uri {
             let mut path_parts = path.splitn(3, '/').skip(1); // Skip empty part
@@ -90,12 +93,32 @@ fn main() {
                                    .expect("Number not found")
                                    .parse::<u32>()
                                    .expect("Invalid number format");
-            let exists = shared_database.is_exist(series, number);
+            let exists = self.shared_database.is_exist(series, number);
             println!("{:04} {:06} is {}", series, number, exists);
             res.send(format!("{}", exists).as_bytes()).unwrap();
         } else {
             println!("{} is not AbsolutePath", req.uri);
         }
 
-    }, args.num_threads).unwrap();
+    }
+}
+
+fn main() {
+    let args = parse_args();
+
+    let database = expass::Database::new(&args.database_path);
+
+    println!(
+        "Start server on {} with {} threads",
+        args.server_bind,
+        args.num_threads,
+    );
+
+    let expass_handler = ExpassHandler::new(database);
+
+
+    Server::http(&*args.server_bind)
+           .unwrap()
+           .handle_threads(expass_handler, args.num_threads)
+           .unwrap();
 }
