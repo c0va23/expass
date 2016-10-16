@@ -1,6 +1,7 @@
 extern crate expass;
 extern crate hyper;
 extern crate clap;
+extern crate num_cpus;
 
 use hyper::server::{Server, Request, Response};
 use hyper::uri::RequestUri;
@@ -12,9 +13,11 @@ static DEFAULT_DATABASE_PATH: &'static str = "list_of_expired_passports.csv";
 struct Args {
     database_path: String,
     server_bind: String,
+    num_threads: usize,
 }
 
 fn parse_args() -> Args {
+    let default_num_threads: String = (num_cpus::get() * 4).to_string();
     let args_matches = clap::App::new("Expass")
                                  .about("Check expared passports")
                                  .arg(
@@ -35,6 +38,15 @@ fn parse_args() -> Args {
                                                .takes_value(true)
                                                .default_value(DEFAULT_SERVER_BIND)
                                  )
+                                 .arg(
+                                     clap::Arg::with_name("num_threads")
+                                               .long("threads")
+                                               .short("t")
+                                               .value_name("NUM_THREADS")
+                                               .help("Number of threads (default <num_cpu>*2")
+                                               .takes_value(true)
+                                               .default_value(&default_num_threads)
+                                 )
                                  .get_matches();
     Args {
         database_path: args_matches.value_of("database_path")
@@ -43,6 +55,11 @@ fn parse_args() -> Args {
         server_bind: args_matches.value_of("server_bind")
                                  .unwrap()
                                  .to_string(),
+        num_threads: args_matches.value_of("num_threads")
+                                 .unwrap()
+                                 .to_string()
+                                 .parse()
+                                 .unwrap(),
     }
 }
 
@@ -52,11 +69,16 @@ fn main() {
     let database = expass::Database::new(&args.database_path);
     let shared_database = std::sync::Arc::new(database);
 
-    println!("Start server on {}", args.server_bind);
+    println!(
+        "Start server on {} with {} threads",
+        args.server_bind,
+        args.num_threads,
+    );
+
 
     Server::http(&*args.server_bind)
            .unwrap()
-           .handle(move |req: Request, res: Response| {
+           .handle_threads(move |req: Request, res: Response| {
         println!("Start process requeset: {} {}", req.method, req.uri);
         if let RequestUri::AbsolutePath(path) = req.uri {
             let mut path_parts = path.splitn(3, '/').skip(1); // Skip empty part
@@ -75,5 +97,5 @@ fn main() {
             println!("{} is not AbsolutePath", req.uri);
         }
 
-    }).unwrap();
+    }, args.num_threads).unwrap();
 }
